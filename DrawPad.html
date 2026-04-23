@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DrawPad • Vishwajeeth</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; color:#fff; overflow:hidden; height:100vh; font-family:system-ui,sans-serif; touch-action:none; }
+    canvas { position:absolute; top:0; left:0; width:100%; height:100%; background:#000; }
+
+    .toolbar {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      width: 58px; background: linear-gradient(#2f1f5e, #1a1438); border-radius: 24px;
+      padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 18px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.75); z-index: 100;
+    }
+    .tool {
+      width: 46px; height: 46px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition: all 0.25s; font-size:24px;
+    }
+    .tool.active {
+      background:#8b5cf6; box-shadow: 0 0 25px #c4a1ff;
+    }
+    .tool:hover:not(.active) { transform:scale(1.08); }
+
+    .trademark {
+      margin-top: 8px; color:#9b8bcc; font-size:4px; text-align:center; cursor:pointer; opacity:0.8;
+    }
+    .trademark:hover { opacity:1; }
+
+    #confirm-popup {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:#1f1838; border-radius:16px; width:300px; padding:24px 20px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.9); z-index:2000; display:none;
+    }
+    .popup-message { font-size:17px; margin-bottom:28px; line-height:1.5; text-align:center; color:#ddd; }
+    .popup-buttons { display:flex; gap:14px; justify-content:center; }
+    .popup-btn {
+      padding:11px 28px; border:none; border-radius:9999px; font-weight:600; cursor:pointer;
+    }
+    .popup-btn.cancel { background:#334155; color:#ddd; }
+    .popup-btn.ok { background:#8b5cf6; color:white; }
+
+    #size-popup {
+      position:absolute; left:90px; top:50%; transform:translateY(-50%);
+      background:#1f1838; border-radius:16px; padding:18px 22px; width:280px;
+      box-shadow:0 15px 50px rgba(0,0,0,0.85); z-index:1000; display:none;
+    }
+    #size-popup .close-btn {
+      position:absolute; top:10px; right:14px; font-size:24px; cursor:pointer; color:#c4a1ff;
+    }
+    #size-popup h3 { text-align:center; margin:0 0 16px 0; color:#c4a1ff; }
+
+    input[type="range"] {
+      -webkit-appearance:none; width:100%; height:7px;
+      background:linear-gradient(to right, #8b5cf6, #c4a1ff); border-radius:9999px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance:none; width:22px; height:22px; background:#fff;
+      border:3px solid #8b5cf6; border-radius:50%; cursor:pointer; box-shadow:0 0 12px #a855f7;
+    }
+
+    #slides-popup {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:#1f1838; border-radius:18px; padding:22px; width:85%; max-width:700px;
+      max-height:85vh; overflow:auto; display:none; box-shadow:0 20px 60px rgba(0,0,0,0.9); z-index:1000;
+    }
+    .slides-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:14px; }
+    .slide-thumb { 
+      background:#0a0a0f; border-radius:12px; padding:8px; cursor:pointer; position:relative; 
+      border: 2px solid transparent;
+    }
+    .slide-thumb.active { border-color: #a855f7; }
+    .delete-btn {
+      position:absolute; top:8px; right:8px; background:#7c3aed; color:white; width:24px; height:24px;
+      border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; 
+      cursor:pointer; transition:0.2s;
+    }
+    .delete-btn:hover { background:#a855f7; transform:scale(1.1); }
+    .slide-number { position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.8); padding:2px 8px; border-radius:8px; font-size:11px; }
+    .popup-close {
+      position:absolute; top:15px; right:15px; font-size:28px; cursor:pointer; color:#c4a1ff;
+    }
+
+    .colors { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:18px; }
+    .color-swatch {
+      width:46px; height:46px; border-radius:12px; cursor:pointer; border:2px solid #3b2a7a;
+      box-shadow:0 4px 10px rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="toolbar">
+    <div class="tool active" id="pen" title="Pen (long press for color & size)">✏️</div>
+    <div class="tool" id="eraser" title="Eraser (long press for size)">🧽</div>
+    <div class="tool" id="add-slide" title="Add New Slide">➕</div>
+    <div class="tool" id="view-slides" title="Tap: View Slides | Long press 8s: Load from Cloud">📁</div>
+    <div class="tool" id="clear-slide" title="Clear Current Slide">🗑️</div>
+    <div class="trademark" onclick="window.open('https://github.com/VishwajeethV','_blank')">© Vishwajeeth</div>
+  </div>
+
+  <div id="confirm-popup">
+    <div class="popup-message" id="popup-message"></div>
+    <div class="popup-buttons">
+      <button class="popup-btn cancel" id="confirm-cancel">Cancel</button>
+      <button class="popup-btn ok" id="confirm-ok">OK</button>
+    </div>
+  </div>
+
+  <div id="size-popup">
+    <div class="close-btn" id="close-size">×</div>
+    <h3 id="size-title">Brush Size</h3>
+    <div class="colors" id="colors"></div>
+    <input type="range" id="size-slider" min="2" max="100" value="8">
+  </div>
+
+  <div id="slides-popup">
+    <div class="popup-close" onclick="hideSlidesPopup()">×</div>
+    <h2 style="text-align:center;margin-bottom:15px;color:#c4a1ff;">Your Slides</h2>
+    <button onclick="clearAllSlides()" style="position:absolute;top:15px;right:60px;padding:8px 16px;background:#7c3aed;border:none;border-radius:8px;color:white;cursor:pointer;">Clear All</button>
+    <div class="slides-grid" id="slides-grid"></div>
+  </div>
+
+  <script>
+    const MASTER_KEY = "$2a$10$CQnBx.KSB5pLcmbOdlixS.77LN3h9pD6sdWGLAh6yY2VxWn7AcuJq";
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    let currentTool = 'pen';
+    let currentColor = '#ffffff';
+    let penSize = 8;
+    let eraserSize = 35;
+    let isDrawing = false;
+    let slides = [[]];
+    let currentSlideIndex = 0;
+    let slidesPopupOpen = false;
+
+    const tools = {
+      pen: document.getElementById('pen'),
+      eraser: document.getElementById('eraser'),
+      add: document.getElementById('add-slide'),
+      slidesBtn: document.getElementById('view-slides'),
+      clear: document.getElementById('clear-slide')
+    };
+
+    function setActiveTool(id) {
+      Object.values(tools).forEach(t => t.classList.remove('active'));
+      if (tools[id]) tools[id].classList.add('active');
+    }
+    setActiveTool('pen');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      redraw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    tools.pen.onclick = () => { currentTool = 'pen'; setActiveTool('pen'); };
+    tools.eraser.onclick = () => { currentTool = 'eraser'; setActiveTool('eraser'); };
+    tools.add.onclick = addNewSlide;
+    tools.clear.onclick = () => showConfirm("Clear the current slide?", clearCurrentSlide);
+
+    let folderTimer;
+    tools.slidesBtn.addEventListener('mousedown', () => {
+      folderTimer = setTimeout(loadFromCloud, 8000);
+    });
+    tools.slidesBtn.addEventListener('mouseup', () => {
+      clearTimeout(folderTimer);
+      if (!slidesPopupOpen) showSlidesPopup();
+      else hideSlidesPopup();
+    });
+    tools.slidesBtn.addEventListener('mouseleave', () => clearTimeout(folderTimer));
+
+    tools.slidesBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      folderTimer = setTimeout(loadFromCloud, 8000);
+    });
+    tools.slidesBtn.addEventListener('touchend', () => {
+      clearTimeout(folderTimer);
+      if (!slidesPopupOpen) showSlidesPopup();
+      else hideSlidesPopup();
+    });
+
+    function setupLongPress(el, isPen) {
+      let timer;
+      el.addEventListener('mousedown', () => timer = setTimeout(() => openSizePopup(isPen), 600));
+      el.addEventListener('mouseup', () => clearTimeout(timer));
+      el.addEventListener('mouseleave', () => clearTimeout(timer));
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); timer = setTimeout(() => openSizePopup(isPen), 600); });
+      el.addEventListener('touchend', () => clearTimeout(timer));
+    }
+
+    function openSizePopup(isPen) {
+      currentTool = isPen ? 'pen' : 'eraser';
+      setActiveTool(isPen ? 'pen' : 'eraser');
+
+      const popup = document.getElementById('size-popup');
+      const colorsDiv = document.getElementById('colors');
+      const title = document.getElementById('size-title');
+      const slider = document.getElementById('size-slider');
+
+      colorsDiv.innerHTML = '';
+      popup.style.display = 'block';
+
+      if (isPen) {
+        title.textContent = "Pen";
+        const colors = ['#ffffff','#ff4d4d','#4dff4d','#4d4dff','#ffff4d','#ff4dff','#4dffff','#ffaa00','#aa00ff'];
+        colors.forEach(c => {
+          const sw = document.createElement('div');
+          sw.className = 'color-swatch';
+          sw.style.backgroundColor = c;
+          sw.onclick = () => currentColor = c;
+          colorsDiv.appendChild(sw);
+        });
+        slider.value = penSize;
+      } else {
+        title.textContent = "Eraser";
+        slider.value = eraserSize;
+      }
+
+      slider.oninput = () => {
+        if (isPen) penSize = parseInt(slider.value);
+        else eraserSize = parseInt(slider.value);
+      };
+    }
+
+    document.getElementById('close-size').onclick = () => document.getElementById('size-popup').style.display = 'none';
+
+    function startDrawing(e) {
+      document.getElementById('size-popup').style.display = 'none';
+      isDrawing = true;
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const p = getPos(e);
+      const size = currentTool === 'eraser' ? eraserSize : penSize;
+      ctx.lineWidth = currentTool === 'eraser' ? size * 2.8 : size;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = currentTool === 'eraser' ? '#000' : currentColor;
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    }
+
+    function stopDrawing() {
+      if (isDrawing) {
+        isDrawing = false;
+        if (currentTool === 'pen') {
+          saveCurrentSlide();
+          saveToCloud();
+        }
+      }
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      return { x, y };
+    }
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); startDrawing(e); });
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); });
+    canvas.addEventListener('touchend', e => { e.preventDefault(); stopDrawing(); });
+
+    function redraw() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (slides[currentSlideIndex]) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0);
+        img.src = slides[currentSlideIndex];
+      }
+    }
+
+    function saveCurrentSlide() {
+      slides[currentSlideIndex] = canvas.toDataURL('image/png');
+    }
+
+    async function saveToCloud() {
+      if (!MASTER_KEY || MASTER_KEY.includes("YOUR_MASTER_KEY_HERE")) return;
+      saveCurrentSlide();
+      const data = { slides, currentSlideIndex };
+      try {
+        await fetch('https://api.jsonbin.io/v3/b', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY, 'X-Bin-Name': 'DrawPad-Vishwajeeth' },
+          body: JSON.stringify(data)
+        });
+        console.log("✅ Cloud saved (pen only)");
+      } catch (e) {}
+    }
+
+    async function loadFromCloud() {
+      if (!MASTER_KEY || MASTER_KEY.includes("YOUR_MASTER_KEY_HERE")) {
+        alert("Please set your JSONBin Master Key in the code first.");
+        return;
+      }
+      try {
+        const res = await fetch('https://api.jsonbin.io/v3/b/latest', {
+          headers: { 'X-Master-Key': MASTER_KEY }
+        });
+        const json = await res.json();
+        if (json.record) {
+          slides = json.record.slides || [[]];
+          currentSlideIndex = json.record.currentSlideIndex || 0;
+          redraw();
+          console.log("✅ Loaded from cloud");
+          alert("Successfully loaded from cloud!");
+        }
+      } catch (err) {
+        alert("Failed to load from cloud. Check your key or internet.");
+      }
+    }
+
+    function loadSlide(i) {
+      currentSlideIndex = i;
+      redraw();
+      updateSlidesPopup();
+    }
+
+    function addNewSlide() {
+      saveCurrentSlide();
+      slides.push([]);
+      loadSlide(slides.length - 1);
+    }
+
+    function clearCurrentSlide() {
+      slides[currentSlideIndex] = [];
+      redraw();
+    }
+
+    function deleteSlide(i) {
+      if (slides.length <= 1) return alert("Cannot delete the last slide.");
+      showConfirm(`Delete slide ${i+1}?`, () => {
+        slides.splice(i, 1);
+        if (currentSlideIndex >= slides.length) currentSlideIndex = slides.length-1;
+        loadSlide(currentSlideIndex);
+      });
+    }
+
+    function clearAllSlides() {
+      showConfirm("Clear ALL slides? This cannot be undone.", () => {
+        slides = [[]];
+        currentSlideIndex = 0;
+        redraw();
+        hideSlidesPopup();
+      });
+    }
+
+    function showSlidesPopup() {
+      saveCurrentSlide();
+      document.getElementById('slides-popup').style.display = 'block';
+      slidesPopupOpen = true;
+      updateSlidesPopup();
+    }
+
+    function hideSlidesPopup() {
+      document.getElementById('slides-popup').style.display = 'none';
+      slidesPopupOpen = false;
+    }
+
+    function updateSlidesPopup() {
+      const grid = document.getElementById('slides-grid');
+      grid.innerHTML = '';
+      slides.forEach((data, i) => {
+        const div = document.createElement('div');
+        div.className = `slide-thumb ${i === currentSlideIndex ? 'active' : ''}`;
+        const img = document.createElement('img');
+        img.style.width = '100%';
+        img.style.borderRadius = '8px';
+        img.style.background = '#0a0a0f';
+        img.src = data || `https://via.placeholder.com/280x180/0a0a0f/ffffff?text=Slide+${i+1}`;
+        const delBtn = document.createElement('div');
+        delBtn.className = 'delete-btn';
+        delBtn.textContent = '×';
+        delBtn.onclick = (e) => { e.stopImmediatePropagation(); deleteSlide(i); };
+        const num = document.createElement('div');
+        num.className = 'slide-number';
+        num.textContent = i + 1;
+        div.appendChild(img);
+        div.appendChild(delBtn);
+        div.appendChild(num);
+        div.onclick = () => { loadSlide(i); hideSlidesPopup(); };
+        grid.appendChild(div);
+      });
+    }
+
+    let confirmCallback = null;
+    function showConfirm(msg, callback) {
+      document.getElementById('popup-message').textContent = msg;
+      document.getElementById('confirm-popup').style.display = 'block';
+      confirmCallback = callback;
+    }
+    document.getElementById('confirm-ok').onclick = () => {
+      document.getElementById('confirm-popup').style.display = 'none';
+      if (confirmCallback) confirmCallback();
+    };
+    document.getElementById('confirm-cancel').onclick = () => {
+      document.getElementById('confirm-popup').style.display = 'none';
+    };
+
+    setupLongPress(tools.pen, true);
+    setupLongPress(tools.eraser, false);
+
+    window.onload = () => {
+      console.log("%c✅ Ready! Long press folder (8 seconds) to load from cloud.", "color:#c084fc; font-size:15px");
+    };
+  </script>
+</body>
+</html>
