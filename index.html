@@ -12,7 +12,7 @@
     .toolbar {
       position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
       width: 58px; background: linear-gradient(#2f1f5e, #1a1438); border-radius: 24px;
-      padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+      padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 18px;
       box-shadow: 0 8px 30px rgba(0,0,0,0.75); z-index: 100;
     }
     .tool {
@@ -29,17 +29,6 @@
     }
     .trademark:hover { opacity:1; }
 
-    /* Info Popup */
-    #info-popup {
-      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-      background:#1f1838; border-radius:16px; padding:25px; width:420px;
-      box-shadow:0 20px 60px rgba(0,0,0,0.9); z-index:2000; display:none;
-      color:#ddd; line-height:1.6; text-align:left;
-    }
-    #info-popup h3 { color:#c4a1ff; margin-bottom:15px; text-align:center; }
-    .version-line { margin:10px 0; font-size:14.5px; }
-
-    /* Other popups */
     #confirm-popup {
       position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
       background:#1f1838; border-radius:16px; width:300px; padding:24px 20px;
@@ -79,7 +68,7 @@
     }
     .slides-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:14px; }
     .slide-thumb { 
-      background:#000000; border-radius:12px; padding:8px; cursor:pointer; position:relative; 
+      background:#0a0a0f; border-radius:12px; padding:8px; cursor:pointer; position:relative; 
       border: 2px solid transparent;
     }
     .slide-thumb.active { border-color: #a855f7; }
@@ -105,41 +94,15 @@
 
   <canvas id="canvas"></canvas>
 
-  <!-- Toolbar -->
   <div class="toolbar">
     <div class="tool active" id="pen" title="Pen (long press for color & size)">✏️</div>
     <div class="tool" id="eraser" title="Eraser (long press for size)">🧽</div>
     <div class="tool" id="add-slide" title="Add New Slide">➕</div>
     <div class="tool" id="view-slides" title="Tap: View Slides | Long press 8s: Load from Cloud">📁</div>
     <div class="tool" id="clear-slide" title="Clear Current Slide">🗑️</div>
-    <div class="tool" id="info-btn" title="Version Info">📝</div>
     <div class="trademark" onclick="window.open('https://github.com/VishwajeethV','_blank')">© Vishwajeeth</div>
   </div>
 
-  <!-- Version Info Popup -->
-  <div id="info-popup">
-    <h3>DrawPad • Vishwajeeth</h3>
-    <div class="version-line">Created on 23-04-2026</div>
-    <div class="version-line">• <strong>V1 (Current version)</strong></div>
-    <div class="version-line" style="margin-left:15px;">
-      Basic blackboard with slides,<br>
-      pen with multiple colors,<br>
-      eraser, clear slides, cloud saving
-    </div>
-    <div class="version-line" style="margin-top:18px;">• Future version(s)</div>
-    <div class="version-line" style="margin-left:15px;">
-      Better UI, selection tool,<br>
-      2D and 3D shapes, graph,<br>
-      web browser integration, and more...
-    </div>
-    <br><br>
-    <button onclick="document.getElementById('info-popup').style.display='none'" 
-            style="width:100%; padding:12px; background:#7c3aed; border:none; border-radius:8px; color:white; cursor:pointer; font-size:15px;">
-      Close
-    </button>
-  </div>
-
-  <!-- Confirmation Popup -->
   <div id="confirm-popup">
     <div class="popup-message" id="popup-message"></div>
     <div class="popup-buttons">
@@ -148,7 +111,6 @@
     </div>
   </div>
 
-  <!-- Size Popup -->
   <div id="size-popup">
     <div class="close-btn" id="close-size">×</div>
     <h3 id="size-title">Brush Size</h3>
@@ -156,7 +118,6 @@
     <input type="range" id="size-slider" min="2" max="100" value="8">
   </div>
 
-  <!-- Slides Popup -->
   <div id="slides-popup">
     <div class="popup-close" onclick="hideSlidesPopup()">×</div>
     <h2 style="text-align:center;margin-bottom:15px;color:#c4a1ff;">Your Slides</h2>
@@ -165,7 +126,6 @@
   </div>
 
   <script>
-    // ================== PUT YOUR JSONBIN MASTER KEY HERE ==================
     const MASTER_KEY = "$2a$10$CQnBx.KSB5pLcmbOdlixS.77LN3h9pD6sdWGLAh6yY2VxWn7AcuJq";
 
     const canvas = document.getElementById('canvas');
@@ -202,15 +162,15 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Tool clicks
     tools.pen.onclick = () => { currentTool = 'pen'; setActiveTool('pen'); };
     tools.eraser.onclick = () => { currentTool = 'eraser'; setActiveTool('eraser'); };
     tools.add.onclick = addNewSlide;
     tools.clear.onclick = () => showConfirm("Clear the current slide?", clearCurrentSlide);
 
-    // Folder button: Tap = toggle slides, Long press 8s = Load from Cloud
     let folderTimer;
-    tools.slidesBtn.addEventListener('mousedown', () => folderTimer = setTimeout(loadFromCloud, 8000));
+    tools.slidesBtn.addEventListener('mousedown', () => {
+      folderTimer = setTimeout(loadFromCloud, 8000);
+    });
     tools.slidesBtn.addEventListener('mouseup', () => {
       clearTimeout(folderTimer);
       if (!slidesPopupOpen) showSlidesPopup();
@@ -228,7 +188,6 @@
       else hideSlidesPopup();
     });
 
-    // Long press for Pen & Eraser
     function setupLongPress(el, isPen) {
       let timer;
       el.addEventListener('mousedown', () => timer = setTimeout(() => openSizePopup(isPen), 600));
@@ -274,7 +233,6 @@
 
     document.getElementById('close-size').onclick = () => document.getElementById('size-popup').style.display = 'none';
 
-    // Drawing
     function startDrawing(e) {
       document.getElementById('size-popup').style.display = 'none';
       isDrawing = true;
@@ -341,19 +299,16 @@
       try {
         await fetch('https://api.jsonbin.io/v3/b', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': MASTER_KEY,
-            'X-Bin-Name': 'DrawPad-Vishwajeeth'
-          },
+          headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY, 'X-Bin-Name': 'DrawPad-Vishwajeeth' },
           body: JSON.stringify(data)
         });
+        console.log("✅ Cloud saved (pen only)");
       } catch (e) {}
     }
 
     async function loadFromCloud() {
       if (!MASTER_KEY || MASTER_KEY.includes("YOUR_MASTER_KEY_HERE")) {
-        alert("Please set your JSONBin Master Key first.");
+        alert("Please set your JSONBin Master Key in the code first.");
         return;
       }
       try {
@@ -365,14 +320,14 @@
           slides = json.record.slides || [[]];
           currentSlideIndex = json.record.currentSlideIndex || 0;
           redraw();
-          alert("✅ Successfully loaded from cloud!");
+          console.log("✅ Loaded from cloud");
+          alert("Successfully loaded from cloud!");
         }
       } catch (err) {
-        alert("Failed to load from cloud.");
+        alert("Failed to load from cloud. Check your key or internet.");
       }
     }
 
-    // Slides functions
     function loadSlide(i) {
       currentSlideIndex = i;
       redraw();
@@ -429,7 +384,7 @@
         const img = document.createElement('img');
         img.style.width = '100%';
         img.style.borderRadius = '8px';
-        img.style.background = '#000000';
+        img.style.background = '#0a0a0f';
         img.src = data || `https://via.placeholder.com/280x180/0a0a0f/ffffff?text=Slide+${i+1}`;
         const delBtn = document.createElement('div');
         delBtn.className = 'delete-btn';
@@ -446,7 +401,6 @@
       });
     }
 
-    // Confirmation
     let confirmCallback = null;
     function showConfirm(msg, callback) {
       document.getElementById('popup-message').textContent = msg;
@@ -461,23 +415,11 @@
       document.getElementById('confirm-popup').style.display = 'none';
     };
 
-    // Version Info Button
-    document.getElementById('info-btn').onclick = () => {
-      document.getElementById('info-popup').style.display = 'block';
-    };
-
-    // Close info popup when clicking outside
-    document.getElementById('info-popup').addEventListener('click', (e) => {
-      if (e.target === document.getElementById('info-popup')) {
-        document.getElementById('info-popup').style.display = 'none';
-      }
-    });
-
     setupLongPress(tools.pen, true);
     setupLongPress(tools.eraser, false);
 
     window.onload = () => {
-      console.log("%c✅ DrawPad V1 is ready with Version Info button!", "color:#c084fc; font-size:15px");
+      console.log("%c✅ Ready! Long press folder (8 seconds) to load from cloud.", "color:#c084fc; font-size:15px");
     };
   </script>
 </body>
